@@ -3,8 +3,10 @@ import sys
 import time
 import shutil
 import logging
+import subprocess
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
+import pyautogui
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO,
@@ -12,42 +14,75 @@ if __name__ == "__main__":
                         datefmt='%Y-%m-%d %H:%M:%S')
 
     path = '/Volumes'
-    main_destination_directory = '/Users/ufapost/Downloads/ShootingDay_X/Main'
-    backup_directory = '/Users/ufapost/Downloads/ShootingDay_X/Backup'
+    main_destination_directory = '/Users/nico.rupprecht/Desktop/01_Ingest'
+    backup_directory = '/Users/nico.rupprecht/Desktop/02_Backup'
+    project_file_path = '/Users/nico.rupprecht/Desktop'
 
-    class CustomEventHandler(FileSystemEventHandler):
-        def on_created(self, event):
-            volume_name = os.path.basename(event.src_path)
-            if 'SETUP' in volume_name:
-                print(f'Volume created: {volume_name}')
-                time.sleep(2)
-                source_path = os.path.join(path, volume_name)
-                main_destination_path = os.path.join(main_destination_directory, volume_name)
-                backup_destination_path = os.path.join(backup_directory, volume_name)
-                try:
-                    shutil.copytree(source_path, main_destination_path, ignore=shutil.ignore_patterns('*.pyc', 'tmp*',".Trashes", ".Spotlight-V100"))
-                    os.chmod(main_destination_path, 0o777)  # Adjust permissions as needed
-                    print(f'Contents of {volume_name} copied to {main_destination_path}')
-                except Exception as e:
-                    print(f'Error copying contents of {volume_name} to {main_destination_path}: {str(e)}')
+class CustomEventHandler(FileSystemEventHandler):
+    def on_created(self, event):
+        volume_name = os.path.basename(event.src_path)
+        if 'KAM_A' in volume_name:
+            print(f'VOLUME inserted: {volume_name}')
+            time.sleep(2)
+            source_path = os.path.join(path, volume_name)
+            main_destination_path = os.path.join(main_destination_directory, volume_name)
+            backup_destination_path = os.path.join(backup_directory, volume_name)
+            try:
+                shutil.copytree(source_path, main_destination_path, ignore=shutil.ignore_patterns('*.pyc', 'tmp*', ".*"))
+                os.chmod(main_destination_path, 0o777)
+                print(f'VOLUME: "{volume_name}" copied to {backup_destination_path}')
+                self.print_copied_contents(main_destination_path)
+            except Exception as e:
+                print(f'ERROR: {str(e)}')
 
-                try:
-                    shutil.copytree(source_path, backup_destination_path, ignore=shutil.ignore_patterns('*.pyc', 'tmp*', ".Trashes", ".Spotlight-V100"))
-                    os.chmod(backup_destination_path, 0o777)  # Adjust permissions as needed
-                    print(f'Contents of {volume_name} copied to {backup_destination_path}')
-                except Exception as e:
-                    print(f'Error copying contents of {volume_name} to {backup_destination_path}: {str(e)}')
-    event_handler = CustomEventHandler()
-    observer = Observer()
-    observer.schedule(event_handler, path, recursive=True)
-    observer.start()
+            try:
+                shutil.copytree(source_path, backup_destination_path, ignore=shutil.ignore_patterns('*.pyc', 'tmp*', ".*"))
+                os.chmod(backup_destination_path, 0o777)
+                print(f'VOLUME: "{volume_name}" copied to {backup_destination_path}')
+                self.print_copied_contents(backup_destination_path)
+            except Exception as e:
+                print(f'ERROR: {str(e)}')
+            
+            time.sleep(2)
+            self.create_premiere_pro_project(volume_name)
 
-    try:
-        while True:
-            time.sleep(1)
-    finally:
-        observer.stop()
-        observer.join()
+    def print_copied_contents(self, destination_path):
+        for root, dirs, files in os.walk(destination_path):
+            for name in files:
+                file_path = os.path.join(root, name)
+                print(f'--- File: "{name}" copied to {file_path}')
+            for name in dirs:
+                dir_path = os.path.join(root, name)
+                print(f'--- Directory: "{name}" copied to path: {dir_path}')
+                
+                
+    def create_premiere_pro_project(self, volume_name):
+    # Wait for Premiere Pro to open (adjust the path based on your system)
+        premiere_pro_path = "/Applications/Adobe Premiere Pro 2023/Adobe Premiere Pro 2023.app"
+        subprocess.Popen(["open", premiere_pro_path])
+        time.sleep(30)
+        pyautogui.hotkey("n")
+        time.sleep(2)
+        pyautogui.hotkey('option', 'command', 'n')
+        time.sleep(2)
+        pyautogui.write("TEST")
+        time.sleep(2)
+        pyautogui.press('enter')
+
+        print("Premiere Pro project created.")
+
+                    
+event_handler = CustomEventHandler()
+observer = Observer()
+observer.schedule(event_handler, path, recursive=True)
+observer.start()
+
+try:
+    while True:
+        time.sleep(1)
+finally:
+    observer.stop()
+    observer.join()
 
 
 
